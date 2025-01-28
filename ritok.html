@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Selection App</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        .qtyColumn {
+            width: 10%;
+        }
+        .container {
+            margin: 20px;
+        }
+        button {
+            margin-top: 20px;
+        }
+        input[type=number] {
+            width: 60px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Pilih Barang</h1>
+        <table id="barangTable">
+            <thead>
+                <tr>
+                    <th class="qtyColumn">Qty</th>
+                    <th>Nama Barang</th>
+                </tr>
+            </thead>
+            <tbody id="barangTableBody">
+                <!-- Rows will be populated here from Excel -->
+            </tbody>
+        </table>
+        <button onclick="shareToWhatsApp()">Share ke WhatsApp</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', loadExcelData);
+
+        function loadExcelData() {
+            fetch('golden.xlsx') // Sesuaikan jalur ini
+                .then(response => response.arrayBuffer())
+                .then(data => {
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                    populateTable(rows);
+                })
+                .catch(error => {
+                    console.error('Error loading Excel file:', error);
+                });
+        }
+
+        function shouldExclude(word) {
+            const exclusions = ['dus', 'lsn', 'bal', 'bh', 'krg'];
+            return exclusions.includes(word.toLowerCase());
+        }
+
+        function getSortableName(name) {
+            const words = name.split(' ');
+            const filteredWords = words.filter(word => !shouldExclude(word));
+            return filteredWords.join(' ');
+        }
+
+        function populateTable(rows) {
+            const tableBody = document.getElementById('barangTableBody');
+            tableBody.innerHTML = '';
+
+            const sortedRows = rows.slice(1).sort((a, b) => {
+                const nameA = getSortableName(a[0]);
+                const nameB = getSortableName(b[0]);
+                return nameA.localeCompare(nameB);
+            });
+
+            sortedRows.forEach(row => {
+                const tr = document.createElement('tr');
+                const qtyTd = document.createElement('td');
+                const nameTd = document.createElement('td');
+
+                qtyTd.innerHTML = `<input type="number" min="0" data-name="${row[0]}" class="qtyInput">`;
+                nameTd.textContent = row[0];
+
+                tr.appendChild(qtyTd);
+                tr.appendChild(nameTd);
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function shareToWhatsApp() {
+            const qtyInputs = document.querySelectorAll('.qtyInput');
+            let selectedItems = [];
+
+            qtyInputs.forEach(input => {
+                const qty = input.value;
+                const name = input.getAttribute('data-name');
+
+                if (qty > 0) {
+                    selectedItems.push(`${qty} ${name}`);
+                }
+            });
+
+            if (selectedItems.length > 0) {
+                const message = selectedItems.join('\n');
+                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+                window.open(whatsappUrl, '_blank');
+            } else {
+                alert('Silakan pilih barang dan isi qty.');
+            }
+        }
+    </script>
+</body>
+</html>
